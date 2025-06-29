@@ -400,29 +400,50 @@ def main():
             else:
                 st.error(f"No se encontró una ruta desde '{nodo_inicio}' a ningún hospital.")
 
-    # El resto de las secciones (Kruskal) no necesitan cambios
     elif analisis_seleccionado == "MST de la Red Completa (Kruskal)":
-        # ... (código sin cambios)
         st.header("MST de la Red Completa (Implementación Propia de Kruskal)")
         MST_completo = kruskal_manual(G_completo, weight='tiempo')
         st.info(f"Tiempo total para conectar la red completa: **{MST_completo.size(weight='tiempo'):.2f} minutos**")
+        
         fig_mst_completo = visualizar_mst_plotly(G_completo, MST_completo, lista_hospitales, lista_capitales)
         st.plotly_chart(fig_mst_completo, use_container_width=True)
-        st.markdown("""**Leyenda de Nodos:** ...""", unsafe_allow_html=True)
+        
+        # --- LEYENDA AÑADIDA ---
+        st.markdown("""
+        **Leyenda de Nodos:**
+        - <span style="color:red; font-size: 20px;">●</span> **Hospital**
+        - <span style="color:blue; font-size: 20px;">●</span> **Capital de Distrito**
+        - <span style="color:#606060; font-size: 20px;">●</span> **Otro Nodo en el MST**
+        - <span style="color:lightgray; font-size: 16px;">●</span> *Otro Nodo (fuera del MST)*
+        """, unsafe_allow_html=True)
+
 
     elif analisis_seleccionado == "MST sobre Muestra de Distritos":
-        # ... (código sin cambios)
         st.header("MST sobre una Muestra Aleatoria y Conectada de Distritos")
-        if st.button("Generar Nueva Muestra Conectada"): pass
+        
+        if st.button("Generar Nueva Muestra Conectada"):
+            pass
+
         G_muestra, distritos_muestra, error = obtener_subgrafo_conectado(G_completo, nodos_df, aristas_df, centros_df)
-        if error: st.error(error)
+
+        if error:
+            st.error(error)
         else:
             st.success(f"Muestra conectada generada para los distritos: **{', '.join(distritos_muestra)}**")
             MST_muestra = kruskal_manual(G_muestra, weight='tiempo')
             st.info(f"El tiempo total mínimo para conectar esta muestra es: **{MST_muestra.size(weight='tiempo'):.2f} minutos**")
+            
             fig_mst_muestra = visualizar_mst_plotly(G_muestra, MST_muestra, lista_hospitales, lista_capitales)
             st.plotly_chart(fig_mst_muestra, use_container_width=True)
-            st.markdown("""**Leyenda de Nodos:** ...""", unsafe_allow_html=True)
+
+            # --- LEYENDA AÑADIDA ---
+            st.markdown("""
+            **Leyenda de Nodos:**
+            - <span style="color:red; font-size: 20px;">●</span> **Hospital**
+            - <span style="color:blue; font-size: 20px;">●</span> **Capital de Distrito**
+            - <span style="color:#606060; font-size: 20px;">●</span> **Otro Nodo en el MST**
+            - <span style="color:lightgray; font-size: 16px;">●</span> *Otro Nodo (fuera del MST)*
+            """, unsafe_allow_html=True)
             
 if __name__ == "__main__":
     main()
