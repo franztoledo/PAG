@@ -1,0 +1,19 @@
+# .streamlit/config.toml
+
+[theme]
+# El color principal para los elementos interactivos (botones, sliders, etc.)
+# Un rojo inspirado en la bandera de Perú.
+primaryColor="#D80027"
+
+
+backgroundColor="#FFFFFF"
+
+
+secondaryBackgroundColor="#F0F2F6"
+
+
+# Un color oscuro casi negro para máxima legibilidad sobre el fondo blanco.
+textColor="#262730"
+
+# La fuente a utilizar en la aplicación.
+font="sans serif"
