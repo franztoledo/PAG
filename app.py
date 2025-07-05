@@ -94,7 +94,7 @@ def reconstruct_path(predecessors, start_node, end_node):
         if current == start_node:
             break
         current = predecessors[current]
-    # Si el bucle termina y el nodo inicial no está, no hay ruta
+   
     return path[::-1] if start_node in path else None
 
 # --- 2. FUNCIONES DE LÓGICA DE LA APLICACIÓN (ADAPTADAS) ---
@@ -173,9 +173,9 @@ def obtener_subgrafo_conectado(G_completo, nodos_df, aristas_df, centros_df):
     for _, row in aristas_sub.iterrows():
         G_muestra.add_edge(row["origen"], row["destino"], tiempo=row["tiempo_minutos"], tipo=row["tipo_camino"])
 
-    # Comprobación final de conectividad
+    
     if not nx.is_connected(G_muestra):
-        # Si aún no está conectado, toma el componente más grande
+        
         componentes = sorted(nx.connected_components(G_muestra), key=len, reverse=True)
         G_muestra = G_muestra.subgraph(componentes[0]).copy()
 
@@ -301,7 +301,7 @@ def calcular_y_visualizar_mst_wrapper(G):
     st.header("Red de conexión mínima (Implementación Propia de Kruskal)")
     st.write("Visualización de la red de caminos más corta que conecta todas las comunidades.")
 
-    # 1. Calcular el MST (sin cambios)
+    # 1. Calcular el MST 
     MST = kruskal_manual(G, weight='tiempo')
     total_tiempo_mst = MST.size(weight='tiempo')
     st.info(f"El tiempo total mínimo para conectar todas las comunidades es: **{total_tiempo_mst:.2f} minutos**")
@@ -309,6 +309,17 @@ def calcular_y_visualizar_mst_wrapper(G):
     # 2. Visualizar con la nueva función de Plotly
     fig = visualizar_mst_plotly(G, MST)
     st.plotly_chart(fig, use_container_width=True)
+def colorear_celda_camino(val):
+    """
+    Colorea el fondo de una celda: verde si es 'CARRETERA', rojo claro si es otro tipo.
+    Se usan colores claros para mantener la legibilidad del texto.
+    """
+    val_upper = str(val).upper()
+    if 'CARRETERA' in val_upper:
+        color = 'lightgreen'
+    else:
+        color = 'lightcoral' # Un rojo claro
+    return f'background-color: {color}'
 
 # --- 3. APLICACIÓN PRINCIPAL DE STREAMLIT ---
 def main():
@@ -405,9 +416,26 @@ def main():
         MST_completo = kruskal_manual(G_completo, weight='tiempo')
         st.info(f"Tiempo total para conectar la red completa: **{MST_completo.size(weight='tiempo'):.2f} minutos**")
         
+        # --- INICIO DE LA MODIFICACIÓN: AÑADIR TABLA DE CAMINOS ---
+        st.subheader("Caminos Utilizados en la Red Mínima")
+        
+        caminos_mst_data = []
+        for u, v, data in MST_completo.edges(data=True):
+            caminos_mst_data.append({
+                "Origen": u,
+                "Destino": v,
+                "Tiempo (min)": f"{data.get('tiempo', 0):.1f}",
+                "Tipo de Camino": data.get('tipo', 'N/A')
+            })
+        caminos_df = pd.DataFrame(caminos_mst_data)
+        
+        # Aplicar el estilo a la columna 'Tipo de Camino'
+        styled_df = caminos_df.style.map(colorear_celda_camino, subset=['Tipo de Camino'])
+        st.dataframe(styled_df, use_container_width=True, hide_index=True)
+        # --- FIN DE LA MODIFICACIÓN ---
+
         fig_mst_completo = visualizar_mst_plotly(G_completo, MST_completo, lista_hospitales, lista_capitales)
         st.plotly_chart(fig_mst_completo, use_container_width=True)
-        
         # --- LEYENDA AÑADIDA ---
         st.markdown("""
         **Leyenda de Nodos:**
@@ -433,9 +461,26 @@ def main():
             MST_muestra = kruskal_manual(G_muestra, weight='tiempo')
             st.info(f"El tiempo total mínimo para conectar esta muestra es: **{MST_muestra.size(weight='tiempo'):.2f} minutos**")
             
+            # --- INICIO DE LA MODIFICACIÓN: AÑADIR TABLA DE CAMINOS ---
+            st.subheader("Caminos Utilizados en la Red Mínima de la Muestra")
+
+            caminos_muestra_data = []
+            for u, v, data in MST_muestra.edges(data=True):
+                caminos_muestra_data.append({
+                    "Origen": u,
+                    "Destino": v,
+                    "Tiempo (min)": f"{data.get('tiempo', 0):.1f}",
+                    "Tipo de Camino": data.get('tipo', 'N/A')
+                })
+            caminos_muestra_df = pd.DataFrame(caminos_muestra_data)
+            
+            # Aplicar el estilo
+            styled_muestra_df = caminos_muestra_df.style.map(colorear_celda_camino, subset=['Tipo de Camino'])
+            st.dataframe(styled_muestra_df, use_container_width=True, hide_index=True)
+            # --- FIN DE LA MODIFICACIÓN ---
+
             fig_mst_muestra = visualizar_mst_plotly(G_muestra, MST_muestra, lista_hospitales, lista_capitales)
             st.plotly_chart(fig_mst_muestra, use_container_width=True)
-
             # --- LEYENDA AÑADIDA ---
             st.markdown("""
             **Leyenda de Nodos:**
