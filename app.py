@@ -205,40 +205,37 @@ def calcular_ruta_dijkstra_wrapper(G, lista_hospitales, nodo_inicio):
         
     return None, None, None
 
-def visualizar_ruta_dijkstra_plotly(G, ruta_optima, nodo_inicio, hospital_mas_cercano, nodos_df):
-    """Crea y devuelve una figura interactiva de Plotly para la ruta de Dijkstra con tooltips informativos."""
+def visualizar_ruta_dijkstra_plotly(G, ruta_optima, nodo_inicio, hospital_mas_cercano, nodos_df, lista_hospitales):
+    """
+    Crea una figura de Plotly para Dijkstra, mostrando etiquetas con fondo en los hospitales y el nodo de inicio.
+    """
     pos = nx.spring_layout(G, seed=42)
     fig = go.Figure()
 
-    # Traza para las aristas de fondo
-    edge_x_bg, edge_y_bg = [], []
-    path_edges = list(zip(ruta_optima, ruta_optima[1:]))
+    # --- Trazas de Aristas (sin cambios) ---
+    # Dibuja las aristas de fondo y las de la ruta principal
+    edge_x_bg, edge_y_bg = [], []; path_edges = list(zip(ruta_optima, ruta_optima[1:]))
     for edge in G.edges():
         if edge not in path_edges and (edge[1], edge[0]) not in path_edges:
-            x0, y0 = pos[edge[0]]
-            x1, y1 = pos[edge[1]]
-            edge_x_bg.extend([x0, x1, None])
-            edge_y_bg.extend([y0, y1, None])
+            x0, y0 = pos[edge[0]]; x1, y1 = pos[edge[1]]
+            edge_x_bg.extend([x0, x1, None]); edge_y_bg.extend([y0, y1, None])
     fig.add_trace(go.Scatter(x=edge_x_bg, y=edge_y_bg, line=dict(width=0.5, color='lightgray'), hoverinfo='none', mode='lines'))
-
-    # Traza para las aristas de la ruta óptima
+    
     edge_x_path, edge_y_path = [], []
     for edge in path_edges:
-        x0, y0 = pos[edge[0]]
-        x1, y1 = pos[edge[1]]
-        edge_x_path.extend([x0, x1, None])
-        edge_y_path.extend([y0, y1, None])
-    fig.add_trace(go.Scatter(x=edge_x_path, y=edge_y_path, line=dict(width=4, color='green'), hoverinfo='none', mode='lines'))
+        x0, y0 = pos[edge[0]]; x1, y1 = pos[edge[1]]
+        edge_x_path.extend([x0, x1, None]); edge_y_path.extend([y0, y1, None])
+    fig.add_trace(go.Scatter(x=edge_x_path, y=edge_y_path, line=dict(width=4, color='black'), hoverinfo='none', mode='lines', name='Ruta Calculada'))
 
-    # Traza para todos los nodos con sus respectivos colores, tamaños y tooltips
+    # --- Traza de Nodos (Marcadores sin texto visible) ---
+    # Dibuja solo los puntos; las etiquetas se añadirán por separado con anotaciones
     node_x, node_y, node_hover_text, node_colors, node_sizes = [], [], [], [], []
     for node in G.nodes():
         x, y = pos[node]
-        node_x.append(x)
-        node_y.append(y)
+        node_x.append(x); node_y.append(y)
         
-        # Crear el texto del tooltip
         info_nodo_rows = nodos_df[nodos_df['centro_poblado'] == node]
+        hover_text = f"<b>{node}</b><br><br>Información no disponible."
         if not info_nodo_rows.empty:
             info_nodo = info_nodo_rows.iloc[0]
             es_hospital_str = "Sí" if info_nodo['es_hospital'] else "No"
@@ -246,24 +243,41 @@ def visualizar_ruta_dijkstra_plotly(G, ruta_optima, nodo_inicio, hospital_mas_ce
                           f"Provincia: {info_nodo['PROVINCIA']}<br>"
                           f"Distrito: {info_nodo['DISTRITO']}<br>"
                           f"Es Hospital: {es_hospital_str}")
-        else:
-            hover_text = f"<b>{node}</b><br><br>Información no disponible."
         node_hover_text.append(hover_text)
         
-        # Lógica de colores y tamaños
         if node == nodo_inicio: node_colors.append('green'); node_sizes.append(20)
-        elif node == hospital_mas_cercano: node_colors.append('red'); node_sizes.append(20)
+        elif node in lista_hospitales: node_colors.append('red'); node_sizes.append(16)
         elif node in ruta_optima: node_colors.append('yellow'); node_sizes.append(15)
         else: node_colors.append('lightgray'); node_sizes.append(8)
             
     fig.add_trace(go.Scatter(
         x=node_x, y=node_y,
-        mode='markers',
+        mode='markers', # <-- CAMBIO: Ya no incluye '+text'
         hoverinfo='text',
         hovertext=node_hover_text,
         marker=dict(color=node_colors, size=node_sizes, line=dict(width=1, color='black'))
     ))
     
+    # --- INICIO DE LA MODIFICACIÓN: Añadir etiquetas como anotaciones con fondo ---
+    for node in G.nodes():
+        # Solo añade etiquetas para el nodo de inicio y los hospitales
+        if node == nodo_inicio or node in lista_hospitales:
+            x, y = pos[node]
+            fig.add_annotation(
+                x=x,
+                y=y,
+                text=f"<b>{node}</b>", # Nombre del nodo en negrita
+                showarrow=False,
+                yshift=15,  # Desplaza la etiqueta 15 píxeles hacia arriba del nodo
+                bgcolor="rgba(255, 255, 255, 0.8)", # Fondo blanco con 80% de opacidad
+                borderpad=2,
+                font=dict(
+                    size=9,
+                    color="black"
+                )
+            )
+    # --- FIN DE LA MODIFICACIÓN ---
+
     fig.update_layout(
         title_text=f'<b>Ruta Óptima de {nodo_inicio} a {hospital_mas_cercano}</b>',
         title_x=0.5, showlegend=False,
@@ -404,9 +418,9 @@ def main():
     # --- Lógica para cada sección ---
 
     if analisis_seleccionado == "Ruta más rápida a Hospital (Dijkstra)":
-        st.header("Encontrar la ruta más rápida a un hospital (Implementación Propia de Dijkstra)")
+        st.header("Encontrar la ruta más rápida a un hospital")
         lista_nodos_validos = sorted([nodo for nodo in G_completo.nodes()])
-        default_index = lista_nodos_validos.index("PUNO") if "PUNO" in lista_nodos_validos else 0
+        default_index = lista_nodos_validos.index("LIMA") if "LIMA" in lista_nodos_validos else 0
         nodo_inicio = st.selectbox("Selecciona el centro poblado de origen:", lista_nodos_validos, index=default_index)
         
         if st.button("Calcular Ruta"):
@@ -428,13 +442,15 @@ def main():
                     })
                 st.dataframe(pd.DataFrame(detalle_ruta), use_container_width=True, hide_index=True)
 
-                fig_dijkstra = visualizar_ruta_dijkstra_plotly(G_completo, ruta_optima, nodo_inicio, hospital_mas_cercano, nodos_df)
+                # --- CAMBIO: Pasa la lista_hospitales a la función ---
+                fig_dijkstra = visualizar_ruta_dijkstra_plotly(G_completo, ruta_optima, nodo_inicio, hospital_mas_cercano, nodos_df, lista_hospitales)
                 st.plotly_chart(fig_dijkstra, use_container_width=True)
                 
+                # --- CAMBIO: Se actualiza la leyenda ---
                 st.markdown("""
                 **Leyenda de Nodos:**
                 - <span style="color:green; font-size: 20px;">●</span> **Nodo de Partida**
-                - <span style="color:red; font-size: 20px;">●</span> **Hospital Destino**
+                - <span style="color:red; font-size: 20px;">●</span> **Hospital**
                 - <span style="color:yellow; font-size: 20px;">●</span> **Nodos en Ruta**
                 """, unsafe_allow_html=True)
             else:
