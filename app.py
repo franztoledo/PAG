@@ -225,7 +225,7 @@ def visualizar_ruta_dijkstra_plotly(G, ruta_optima, nodo_inicio, hospital_mas_ce
     for edge in path_edges:
         x0, y0 = pos[edge[0]]; x1, y1 = pos[edge[1]]
         edge_x_path.extend([x0, x1, None]); edge_y_path.extend([y0, y1, None])
-    fig.add_trace(go.Scatter(x=edge_x_path, y=edge_y_path, line=dict(width=4, color='black'), hoverinfo='none', mode='lines', name='Ruta Calculada'))
+    fig.add_trace(go.Scatter(x=edge_x_path, y=edge_y_path, line=dict(width=4, color='green'), hoverinfo='none', mode='lines', name='Ruta Calculada'))
 
     # --- Traza de Nodos (Marcadores sin texto visible) ---
     # Dibuja solo los puntos; las etiquetas se añadirán por separado con anotaciones
