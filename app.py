@@ -205,39 +205,80 @@ def calcular_ruta_dijkstra_wrapper(G, lista_hospitales, nodo_inicio):
         
     return None, None, None
 
-def visualizar_ruta_dijkstra_plotly(G, ruta_optima, nodo_inicio, hospital_mas_cercano):
-    # ... (sin cambios)
+def visualizar_ruta_dijkstra_plotly(G, ruta_optima, nodo_inicio, hospital_mas_cercano, nodos_df):
+    """Crea y devuelve una figura interactiva de Plotly para la ruta de Dijkstra con tooltips informativos."""
     pos = nx.spring_layout(G, seed=42)
     fig = go.Figure()
-    # (Código de Plotly es largo, se omite por brevedad pero es el mismo de antes)
-    edge_x_bg, edge_y_bg = [], []; path_edges = list(zip(ruta_optima, ruta_optima[1:]))
+
+    # Traza para las aristas de fondo
+    edge_x_bg, edge_y_bg = [], []
+    path_edges = list(zip(ruta_optima, ruta_optima[1:]))
     for edge in G.edges():
         if edge not in path_edges and (edge[1], edge[0]) not in path_edges:
-            x0, y0 = pos[edge[0]]; x1, y1 = pos[edge[1]]; edge_x_bg.extend([x0, x1, None]); edge_y_bg.extend([y0, y1, None])
+            x0, y0 = pos[edge[0]]
+            x1, y1 = pos[edge[1]]
+            edge_x_bg.extend([x0, x1, None])
+            edge_y_bg.extend([y0, y1, None])
     fig.add_trace(go.Scatter(x=edge_x_bg, y=edge_y_bg, line=dict(width=0.5, color='lightgray'), hoverinfo='none', mode='lines'))
+
+    # Traza para las aristas de la ruta óptima
     edge_x_path, edge_y_path = [], []
     for edge in path_edges:
-        x0, y0 = pos[edge[0]]; x1, y1 = pos[edge[1]]; edge_x_path.extend([x0, x1, None]); edge_y_path.extend([y0, y1, None])
-    fig.add_trace(go.Scatter(x=edge_x_path, y=edge_y_path, line=dict(width=4, color='black'), hoverinfo='none', mode='lines'))
-    node_x, node_y, node_text, node_colors, node_sizes = [], [], [], [], []
+        x0, y0 = pos[edge[0]]
+        x1, y1 = pos[edge[1]]
+        edge_x_path.extend([x0, x1, None])
+        edge_y_path.extend([y0, y1, None])
+    fig.add_trace(go.Scatter(x=edge_x_path, y=edge_y_path, line=dict(width=4, color='green'), hoverinfo='none', mode='lines'))
+
+    # Traza para todos los nodos con sus respectivos colores, tamaños y tooltips
+    node_x, node_y, node_hover_text, node_colors, node_sizes = [], [], [], [], []
     for node in G.nodes():
-        x, y = pos[node]; node_x.append(x); node_y.append(y); node_text.append(node)
+        x, y = pos[node]
+        node_x.append(x)
+        node_y.append(y)
+        
+        # Crear el texto del tooltip
+        info_nodo_rows = nodos_df[nodos_df['centro_poblado'] == node]
+        if not info_nodo_rows.empty:
+            info_nodo = info_nodo_rows.iloc[0]
+            es_hospital_str = "Sí" if info_nodo['es_hospital'] else "No"
+            hover_text = (f"<b>{info_nodo['centro_poblado']}</b><br><br>"
+                          f"Provincia: {info_nodo['PROVINCIA']}<br>"
+                          f"Distrito: {info_nodo['DISTRITO']}<br>"
+                          f"Es Hospital: {es_hospital_str}")
+        else:
+            hover_text = f"<b>{node}</b><br><br>Información no disponible."
+        node_hover_text.append(hover_text)
+        
+        # Lógica de colores y tamaños
         if node == nodo_inicio: node_colors.append('green'); node_sizes.append(20)
         elif node == hospital_mas_cercano: node_colors.append('red'); node_sizes.append(20)
         elif node in ruta_optima: node_colors.append('yellow'); node_sizes.append(15)
         else: node_colors.append('lightgray'); node_sizes.append(8)
-    fig.add_trace(go.Scatter(x=node_x, y=node_y, mode='markers', text=node_text, hoverinfo='text', marker=dict(color=node_colors, size=node_sizes, line=dict(width=1, color='black'))))
-    fig.update_layout(title_text=f'<b>Ruta Óptima de {nodo_inicio} a {hospital_mas_cercano}</b>', title_x=0.5, showlegend=False, xaxis=dict(showgrid=False, zeroline=False, showticklabels=False), yaxis=dict(showgrid=False, zeroline=False, showticklabels=False), margin=dict(l=20, r=20, t=40, b=20))
+            
+    fig.add_trace(go.Scatter(
+        x=node_x, y=node_y,
+        mode='markers',
+        hoverinfo='text',
+        hovertext=node_hover_text,
+        marker=dict(color=node_colors, size=node_sizes, line=dict(width=1, color='black'))
+    ))
+    
+    fig.update_layout(
+        title_text=f'<b>Ruta Óptima de {nodo_inicio} a {hospital_mas_cercano}</b>',
+        title_x=0.5, showlegend=False,
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        margin=dict(l=20, r=20, t=40, b=20), hovermode='closest'
+    )
     return fig
-def visualizar_mst_plotly(G, MST, lista_hospitales, lista_capitales):
-    """
-    Crea una figura de Plotly para el MST, coloreando hospitales y capitales.
-    """
+
+def visualizar_mst_plotly(G, MST, lista_hospitales, lista_capitales, nodos_df):
+    """Crea una figura de Plotly para el MST con tooltips informativos y colores específicos."""
     pos = nx.spring_layout(G, seed=42)
     fig = go.Figure()
 
-    # --- Trazas de Aristas (Edges) ---
-    # Aristas de fondo (no en el MST)
+    # Traza para las aristas de fondo (no en el MST)
     edge_x_bg, edge_y_bg = [], []
     mst_edges = set(map(frozenset, MST.edges()))
     for edge in G.edges():
@@ -247,7 +288,7 @@ def visualizar_mst_plotly(G, MST, lista_hospitales, lista_capitales):
     fig.add_trace(go.Scatter(x=edge_x_bg, y=edge_y_bg, line=dict(width=1, color='lightgray', dash='dash'),
         hoverinfo='none', mode='lines', name='Caminos No Utilizados'))
 
-    # Aristas del MST
+    # Traza para las aristas del MST
     edge_x_mst, edge_y_mst = [], []
     for edge in MST.edges():
         x0, y0 = pos[edge[0]]; x1, y1 = pos[edge[1]]
@@ -255,40 +296,44 @@ def visualizar_mst_plotly(G, MST, lista_hospitales, lista_capitales):
     fig.add_trace(go.Scatter(x=edge_x_mst, y=edge_y_mst, line=dict(width=3, color='red'),
         hoverinfo='none', mode='lines', name='Red de Conexión Mínima (MST)'))
 
-    # --- Traza de Nodos con Colores Específicos ---
-    node_x, node_y, node_colors, node_sizes = [], [], [], []
+    # Traza para los nodos con colores y tooltips
+    node_x, node_y, node_hover_text, node_colors, node_sizes = [], [], [], [], []
     for node in G.nodes():
         x, y = pos[node]
         node_x.append(x)
         node_y.append(y)
         
-        # Lógica de coloreado con prioridad para hospitales
-        if node in lista_hospitales:
-            node_colors.append('red')
-            node_sizes.append(12)
-        elif node in lista_capitales:
-            node_colors.append('blue')
-            node_sizes.append(12)
-        elif node in MST.nodes():
-            node_colors.append('#606060') # Gris oscuro para nodos regulares en el MST
-            node_sizes.append(8)
+        # Crear el texto del tooltip
+        info_nodo_rows = nodos_df[nodos_df['centro_poblado'] == node]
+        if not info_nodo_rows.empty:
+            info_nodo = info_nodo_rows.iloc[0]
+            es_hospital_str = "Sí" if info_nodo['es_hospital'] else "No"
+            hover_text = (f"<b>{info_nodo['centro_poblado']}</b><br><br>"
+                          f"Provincia: {info_nodo['PROVINCIA']}<br>"
+                          f"Distrito: {info_nodo['DISTRITO']}<br>"
+                          f"Es Hospital: {es_hospital_str}")
         else:
-            node_colors.append('lightgray') # Gris claro para nodos de fondo
-            node_sizes.append(4)
+            hover_text = f"<b>{node}</b><br><br>Información no disponible."
+        node_hover_text.append(hover_text)
+        
+        # Lógica de colores y tamaños
+        if node in lista_hospitales: node_colors.append('red'); node_sizes.append(12)
+        elif node in lista_capitales: node_colors.append('blue'); node_sizes.append(12)
+        elif node in MST.nodes(): node_colors.append('#606060'); node_sizes.append(8)
+        else: node_colors.append('lightgray'); node_sizes.append(4)
             
     fig.add_trace(go.Scatter(
-        x=node_x, y=node_y, mode='markers', hoverinfo='none',
+        x=node_x, y=node_y, mode='markers', hoverinfo='text', hovertext=node_hover_text,
         marker=dict(color=node_colors, size=node_sizes, line=dict(width=1, color='black')),
         showlegend=False
     ))
 
-    # --- Configuración del Layout ---
     fig.update_layout(
         title_text='<b>Red de Conexión Mínima (MST)</b>', title_x=0.5,
         showlegend=True, legend=dict(x=0.01, y=0.99, bordercolor="Black", borderwidth=1),
         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        margin=dict(l=20, r=20, t=40, b=20), plot_bgcolor='white'
+        margin=dict(l=20, r=20, t=40, b=20), plot_bgcolor='white', hovermode='closest'
     )
     return fig
 
@@ -361,7 +406,7 @@ def main():
     if analisis_seleccionado == "Ruta más rápida a Hospital (Dijkstra)":
         st.header("Encontrar la ruta más rápida a un hospital (Implementación Propia de Dijkstra)")
         lista_nodos_validos = sorted([nodo for nodo in G_completo.nodes()])
-        default_index = lista_nodos_validos.index("LIMA") if "LIMA" in lista_nodos_validos else 0
+        default_index = lista_nodos_validos.index("PUNO") if "PUNO" in lista_nodos_validos else 0
         nodo_inicio = st.selectbox("Selecciona el centro poblado de origen:", lista_nodos_validos, index=default_index)
         
         if st.button("Calcular Ruta"):
@@ -371,35 +416,19 @@ def main():
                 st.success(f"Hospital más cercano: **{hospital_mas_cercano}**")
                 st.info(f"Tiempo de viaje estimado: **{tiempo_minimo:.2f} minutos**")
                 
-                # --- INICIO DE LA MODIFICACIÓN: AÑADIR DETALLE DE RUTA ---
-
                 st.subheader("Detalle del Recorrido")
-
-                # Crear una lista de diccionarios para la tabla
                 detalle_ruta = []
                 for i in range(len(ruta_optima) - 1):
-                    origen = ruta_optima[i]
-                    destino = ruta_optima[i+1]
-                    # Obtener datos de la arista desde el grafo
+                    origen, destino = ruta_optima[i], ruta_optima[i+1]
                     datos_arista = G_completo.get_edge_data(origen, destino)
-                    tiempo_tramo = datos_arista.get('tiempo', 0)
-                    tipo_camino = datos_arista.get('tipo', 'Desconocido')
-                    
                     detalle_ruta.append({
-                        "Paso": i + 1,
-                        "Desde": origen,
-                        "Hacia": destino,
-                        "Tipo de Camino": tipo_camino,
-                        "Tiempo del Tramo (min)": f"{tiempo_tramo:.1f}"
+                        "Paso": i + 1, "Desde": origen, "Hacia": destino,
+                        "Tipo de Camino": datos_arista.get('tipo', 'Desconocido'),
+                        "Tiempo del Tramo (min)": f"{datos_arista.get('tiempo', 0):.1f}"
                     })
-                
-                # Convertir a DataFrame de Pandas y mostrar con Streamlit
-                detalle_df = pd.DataFrame(detalle_ruta)
-                st.dataframe(detalle_df, use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(detalle_ruta), use_container_width=True, hide_index=True)
 
-                # --- FIN DE LA MODIFICACIÓN ---
-
-                fig_dijkstra = visualizar_ruta_dijkstra_plotly(G_completo, ruta_optima, nodo_inicio, hospital_mas_cercano)
+                fig_dijkstra = visualizar_ruta_dijkstra_plotly(G_completo, ruta_optima, nodo_inicio, hospital_mas_cercano, nodos_df)
                 st.plotly_chart(fig_dijkstra, use_container_width=True)
                 
                 st.markdown("""
@@ -416,27 +445,16 @@ def main():
         MST_completo = kruskal_manual(G_completo, weight='tiempo')
         st.info(f"Tiempo total para conectar la red completa: **{MST_completo.size(weight='tiempo'):.2f} minutos**")
         
-        # --- INICIO DE LA MODIFICACIÓN: AÑADIR TABLA DE CAMINOS ---
         st.subheader("Caminos Utilizados en la Red Mínima")
-        
-        caminos_mst_data = []
-        for u, v, data in MST_completo.edges(data=True):
-            caminos_mst_data.append({
-                "Origen": u,
-                "Destino": v,
-                "Tiempo (min)": f"{data.get('tiempo', 0):.1f}",
-                "Tipo de Camino": data.get('tipo', 'N/A')
-            })
+        caminos_mst_data = [{"Origen": u, "Destino": v, "Tiempo (min)": f"{data.get('tiempo', 0):.1f}", "Tipo de Camino": data.get('tipo', 'N/A')} for u, v, data in MST_completo.edges(data=True)]
         caminos_df = pd.DataFrame(caminos_mst_data)
-        
-        # Aplicar el estilo a la columna 'Tipo de Camino'
         styled_df = caminos_df.style.map(colorear_celda_camino, subset=['Tipo de Camino'])
         st.dataframe(styled_df, use_container_width=True, hide_index=True)
-        # --- FIN DE LA MODIFICACIÓN ---
-
-        fig_mst_completo = visualizar_mst_plotly(G_completo, MST_completo, lista_hospitales, lista_capitales)
+        
+        # Llamada a la visualización (CORREGIDA)
+        fig_mst_completo = visualizar_mst_plotly(G_completo, MST_completo, lista_hospitales, lista_capitales, nodos_df)
         st.plotly_chart(fig_mst_completo, use_container_width=True)
-        # --- LEYENDA AÑADIDA ---
+        
         st.markdown("""
         **Leyenda de Nodos:**
         - <span style="color:red; font-size: 20px;">●</span> **Hospital**
@@ -461,27 +479,16 @@ def main():
             MST_muestra = kruskal_manual(G_muestra, weight='tiempo')
             st.info(f"El tiempo total mínimo para conectar esta muestra es: **{MST_muestra.size(weight='tiempo'):.2f} minutos**")
             
-            # --- INICIO DE LA MODIFICACIÓN: AÑADIR TABLA DE CAMINOS ---
             st.subheader("Caminos Utilizados en la Red Mínima de la Muestra")
-
-            caminos_muestra_data = []
-            for u, v, data in MST_muestra.edges(data=True):
-                caminos_muestra_data.append({
-                    "Origen": u,
-                    "Destino": v,
-                    "Tiempo (min)": f"{data.get('tiempo', 0):.1f}",
-                    "Tipo de Camino": data.get('tipo', 'N/A')
-                })
+            caminos_muestra_data = [{"Origen": u, "Destino": v, "Tiempo (min)": f"{data.get('tiempo', 0):.1f}", "Tipo de Camino": data.get('tipo', 'N/A')} for u, v, data in MST_muestra.edges(data=True)]
             caminos_muestra_df = pd.DataFrame(caminos_muestra_data)
-            
-            # Aplicar el estilo
             styled_muestra_df = caminos_muestra_df.style.map(colorear_celda_camino, subset=['Tipo de Camino'])
             st.dataframe(styled_muestra_df, use_container_width=True, hide_index=True)
-            # --- FIN DE LA MODIFICACIÓN ---
-
-            fig_mst_muestra = visualizar_mst_plotly(G_muestra, MST_muestra, lista_hospitales, lista_capitales)
+            
+            # Llamada a la visualización (CORREGIDA)
+            fig_mst_muestra = visualizar_mst_plotly(G_muestra, MST_muestra, lista_hospitales, lista_capitales, nodos_df)
             st.plotly_chart(fig_mst_muestra, use_container_width=True)
-            # --- LEYENDA AÑADIDA ---
+
             st.markdown("""
             **Leyenda de Nodos:**
             - <span style="color:red; font-size: 20px;">●</span> **Hospital**
